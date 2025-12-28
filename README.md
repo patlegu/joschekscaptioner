@@ -13,8 +13,8 @@ A vibe coded image captioning tool for AI training datasets.
 ### 1. Prerequisites
 Ensure you have Python 3.10+ and the following system packages:
 ```bash
-sudo apt update
-sudo apt install python3-tk zenity nvidia-smi
+sudo pacman -Syu
+sudo pacman -S python-tk zenity nvidia-utils
 ```
 
 ### 2. Install Dependencies
