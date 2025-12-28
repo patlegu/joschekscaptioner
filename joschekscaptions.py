@@ -263,7 +263,7 @@ class CropWorker:
 class App:
     def __init__(self, root):
         self.root = root
-        root.title("Joschek's Captioner v22-Linux")
+        root.title("Joschek's Captioner V 1.0")
         root.geometry("1100x720")
         root.configure(bg=BG)
         # Set modern font for the entire application
@@ -391,7 +391,12 @@ class App:
     def build_server(self):
         f = tk.Frame(self.tab_srv, bg=BG)
         f.pack(fill="both", expand=True, padx=25, pady=20)
-        self.bin  = tk.StringVar(value=self.config.get("server_binary", "./build/bin/llama-server"))
+        
+        default_bin = "./build/bin/llama-server"
+        if os.name == 'nt':
+            default_bin = "llama-server.exe"
+            
+        self.bin  = tk.StringVar(value=self.config.get("server_binary", default_bin))
         self.model= tk.StringVar(value=self.config.get("model_file", ""))
         self.proj = tk.StringVar(value=self.config.get("projector_file", ""))
         self.port = tk.StringVar(value=self.config.get("port", DEFAULT_PORT))
@@ -830,7 +835,11 @@ class App:
         self.zoom_tl = tl
     # ---------------- SERVER  ----------------
     def detect_binary(self):
-        for p in ["./build/bin/llama-server", "./llama-server", "../llama.cpp/build/bin/llama-server"]:
+        paths = ["./build/bin/llama-server", "./llama-server", "../llama.cpp/build/bin/llama-server"]
+        if os.name == 'nt':
+            paths = ["llama-server.exe", "build/bin/Release/llama-server.exe", "./llama-server.exe"]
+            
+        for p in paths:
             if Path(p).exists():
                 self.bin.set(p)
                 break
@@ -866,32 +875,43 @@ class App:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to kill GPU processes:\n{e}")
     # ---------------------------------------------------------
-    #  Native folder picker using zenity for XFCE/GTK integration
+    #  Cross-platform folder picker
     # ---------------------------------------------------------
     def _folder_picker(self, title="Select folder"):
-        """Return POSIX path string; empty if cancelled. Uses zenity for native XFCE/GTK dialog."""
-        # 1. Try zenity (GTK native)
+        """Return path string; empty if cancelled."""
+        
+        # Windows: Use native Tkinter dialog (it's actually native on Windows)
+        if os.name == 'nt':
+            return filedialog.askdirectory(title=title)
+            
+        # Linux/Unix: Try zenity for better DE integration (XFCE/GNOME/etc)
         try:
             # check if zenity exists
             subprocess.run(["zenity", "--version"], capture_output=True, check=True)
             
+            # Use zenity without timeout as user interaction takes time
             result = subprocess.run(
                 ["zenity", "--file-selection", "--directory", "--title", title],
                 capture_output=True,
                 text=True,
-                check=False, # Don't raise exception on cancel (exit code 1)
-                timeout=60
+                check=False  # Don't raise exception on cancel (exit code 1)
             )
+            
             if result.returncode == 0:
                 path = result.stdout.strip()
                 if path: return path
-            # If it returned 1, user cancelled. Return empty string.
-            if result.returncode == 1:
-                return ""
-        except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            # If user cancelled (code 1), return empty string immediately
+            # do NOT fall back to tk picker
+            return ""
+            
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            # Zenity not found or failed to execute -> Fallback
+            pass
+        except Exception as e:
+            print(f"Zenity error: {e}")
             pass
 
-        # 2. Fallback to custom Tk picker ONLY if zenity failed to run or wasn't found
+        # Fallback to custom Tk picker if zenity wasn't found
         return self._folder_picker_tk(title)
     
     def _folder_picker_tk(self, title="Select folder"):
@@ -975,19 +995,34 @@ class App:
         if self.proj.get():
             cmd.extend(["--mmproj", self.proj.get()])
         self.log.insert("end", "Starting server...\n")
+        
+        # Windows compatibility for subprocess
+        kwargs = {}
+        if os.name != 'nt':
+            kwargs['preexec_fn'] = os.setsid
+        else:
+            # CREATE_NEW_PROCESS_GROUP = 0x00000200
+            kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+
         try:
             self.server_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                                stderr=subprocess.STDOUT, text=True,
-                                               bufsize=1, preexec_fn=os.setsid)
+                                               bufsize=1, **kwargs)
             self.btn_start.config(state="disabled", bg=CARD)
             self.btn_stop.config(state="normal", bg=RED)
             threading.Thread(target=self.watch_server, daemon=True).start()
         except Exception as e:
             self.log.insert("end", f"Error: {e}\n")
+
     def stop_server(self):
         if self.server_proc:
             try:
-                os.killpg(os.getpgid(self.server_proc.pid), signal.SIGTERM)
+                if os.name != 'nt':
+                    os.killpg(os.getpgid(self.server_proc.pid), signal.SIGTERM)
+                else:
+                    # Windows: Send CTRL_BREAK_EVENT or force kill
+                    self.server_proc.terminate() 
+                
                 threading.Thread(target=self.server_proc.wait, daemon=True).start()
             except Exception as e:
                 self.log.insert("end", f"Stop error: {e}\n")

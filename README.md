@@ -1,45 +1,76 @@
 # Joschek's Captioner
 
-A vibe coded image captioning tool for AI training datasets.
+Another AI training tool. This one is "vibe coded", which means I wrote it until it worked for me. If it works for you, that's a happy accident.
 
 ## Features
-- **Batch Captioning**: Uses llama-server (llama.cpp) and OpenAI-compatible API to caption images.
-- **Human Cropping**: Detects people using YOLOv8-seg and crops them at optimal resolutions (768, 1024, 1536, 2048) without resizing.
-- **Native UI**: Built with Tkinter, featuring a native folder picker (Zenity fallback).
-- **Caption Editor**: Side-by-side image and text editor for quick dataset refinement.
+- **Model Selector**: Because we all know your file organization is a mess. Point it to wherever you hid your vision models this time.
+- **Batch Captioning**: Queue up folders to caption while you go contemplate what you are doing.
+- **Cropping**: Uses YOLOv8 to find people and crop them. It sometimes works.
+- **Caption Editor**: A groundbreaking text box to fix the AI's hallucinations. With filter function.
+- **Problem Bin**: One-click functionality to yeet problematic pairs into a separate folder so you can deal with them "later" (never).
 
 ## Installation
 
-### 1. Prerequisites
-Ensure you have Python 3.10+ and the following system packages:
-```bash
-sudo pacman -Syu
-sudo pacman -S python-tk zenity nvidia-utils
-```
+You need Python 3.10+ and an NVIDIA GPU. If you don't have a GPU, enjoy waiting.
 
-### 2. Install Dependencies
+### Arch / Manjaro (btw)
 ```bash
+sudo pacman -Syu python-tk zenity nvidia-utils git
+git clone https://github.com/realjoschek/joschekscaptioner.git
+cd joschekscaptioner
+python -m venv venv
+source venv/bin/activate
 pip install ultralytics opencv-python numpy openai pillow
 ```
 
-### 3. Setup llama-server (for Captioning)
-You need `llama-server` from the [llama.cpp](https://github.com/ggerganov/llama.cpp) project and a Vision-capable model (like LLaVA).
-1. Download/Build `llama-server`.
-2. Download a GGUF model and its mmproj projector file.
-
-## Usage
-Run the application:
+### Debian / Ubuntu / Mint
 ```bash
-python joschek_captioner_v11.py
+sudo apt update && sudo apt install -y python3-tk zenity git
+git clone https://github.com/realjoschek/joschekscaptioner.git
+cd joschekscaptioner
+python3 -m venv venv
+source venv/bin/activate
+pip install ultralytics opencv-python numpy openai pillow
 ```
 
-1. **Server Tab**: Configure and start your local llama-server.
-2. **Batch Tab**: Add folders to the queue and generate captions.
-3. **Editor Tab**: Manually review and edit generated captions.
-4. **Crop Humans Tab**: Select input/output folders to automatically detect and crop people from images at the best fitting resolution (768, 1024, 1536, or 2048).
+### Windows (I'm sorry)
+1. Install Python 3.10+ (Add to PATH, don't ask why).
+2. Install Git.
+3. Paste this into PowerShell and pray:
+   ```powershell
+   git clone https://github.com/realjoschek/joschekscaptioner.git
+   cd joschekscaptioner
+   python -m venv venv
+   .\venv\Scripts\activate
+   pip install ultralytics opencv-python numpy openai pillow
+   ```
 
-### Recomended Models
-qwen-vl-3-abliterated-caption-it
+### Setup llama-server
+You need `llama-server` from [llama.cpp](https://github.com/ggerganov/llama.cpp)
+1. **Get the binary**: Put `llama-server` (or `.exe`) in root or `./build/bin/`.
+2. **Get a model**:
+   - Recommended: [Qwen3-VL-8B-Abliterated-Caption-it](https://huggingface.co/prithivMLmods/Qwen3-VL-8B-Abliterated-Caption-it). If you are planning on captioning naughty stuff.
+   - Alternative: Qwen VL 3 - standart. better sometimes.
+   - Don't forget the mmproj file.
+
+## Usage
+
+**Linux:**
+```bash
+source venv/bin/activate
+python joschekscaptions.py
+```
+
+**Windows:**
+```powershell
+.\venv\Scripts\activate
+python joschekscaptions.py
+```
+
+1. **Server Tab**: Pick your binary and model. Hit start. There's a "Kill GPU processes" button for when things go south.
+2. **Batch Tab**: Point it at images. Wait.
+3. **Editor Tab**: Fix the captions.
+4. **Crop Humans**: Automagical cropping.
 
 ## License
-gpl
+GPL
