@@ -347,10 +347,10 @@ class App:
 
         # Add tabs
         self.add_tab("Server", self.tab_srv)
-        self.add_tab("Batch", self.tab_batch)
-        self.add_tab("Editor", self.tab_editor)
+        self.add_tab("Batch Captioning", self.tab_batch)
+        self.add_tab("Manual Edit", self.tab_editor)
         self.add_tab("Filter & Move", self.tab_filter)
-        self.add_tab("Crop", self.tab_crop)
+        self.add_tab("Automatic Cropping", self.tab_crop)
 
         # Separator line under tabs
         tk.Frame(main, bg=INPUT, height=1).pack(side="top", fill="x", pady=(0, 0))
@@ -410,7 +410,7 @@ class App:
         for label, var, browse in [("Server Binary", self.bin, True),
                                    ("Model (.gguf)", self.model, True),
                                    ("Projector (.gguf)", self.proj, True)]:
-            self.field(f, label, var, browse)
+            self.field(f, label, var, browse, kind="file")
         tk.Frame(f, height=12, bg=BG).pack()
         params = tk.Frame(f, bg=BG)
         params.pack(fill="x")
@@ -689,7 +689,7 @@ class App:
         # source
         tk.Label(f, text="Image-Caption folder:", bg=BG, fg=DIM, font=("Sans", 9)).pack(anchor="w")
         self.filter_src_var = tk.StringVar()
-        self.field(f, "", self.filter_src_var, True)
+        self.field(f, "", self.filter_src_var, True, kind="folder")
         # keyword
         tk.Frame(f, height=8, bg=BG).pack()
         tk.Label(f, text="Keyword (case-insensitive):", bg=BG, fg=DIM, font=("Sans", 9)).pack(anchor="w")
@@ -701,7 +701,7 @@ class App:
         tk.Frame(f, height=8, bg=BG).pack()
         tk.Label(f, text="Target folder:", bg=BG, fg=DIM, font=("Sans", 9)).pack(anchor="w")
         self.filter_tgt_var = tk.StringVar()
-        self.field(f, "", self.filter_tgt_var, True)
+        self.field(f, "", self.filter_tgt_var, True, kind="folder")
         # button
         tk.Frame(f, height=15, bg=BG).pack()
         self.btn(f, "Move matched pairs", BLUE, self.move_keyword_pairs).pack(anchor="e")
@@ -988,6 +988,35 @@ class App:
         self.root.wait_window(top)
         return out[0] if out else ""
 
+    def _file_picker(self, title="Select file"):
+        """Return path string; empty if cancelled."""
+        if os.name == 'nt':
+            return filedialog.askopenfilename(title=title)
+        
+        try:
+            # check if zenity exists
+            subprocess.run(["zenity", "--version"], capture_output=True, check=True)
+            
+            result = subprocess.run(
+                ["zenity", "--file-selection", "--title", title],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            
+            if result.returncode == 0:
+                path = result.stdout.strip()
+                if path: return path
+            return ""
+            
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            pass
+        except Exception as e:
+            print(f"Zenity error: {e}")
+            pass
+
+        return filedialog.askopenfilename(title=title)
+
     # ---------------- SERVER CONTROL (NO-HANG) ----------------
     def start_server(self):
         cmd = [self.bin.get(), "-m", self.model.get(), "--port", self.port.get(),
@@ -1235,7 +1264,7 @@ class App:
         self.load_editor_images()
     
     
-    def field(self, parent, label, var, browse):
+    def field(self, parent, label, var, browse, kind="folder"):
         """Create a modern input field with optional browse button."""
         if label:
             tk.Label(parent, text=label, bg=BG, fg=DIM, font=("Sans", 9, "bold")).pack(anchor="w", pady=(0, 4))
@@ -1248,9 +1277,14 @@ class App:
         entry.bind("<Enter>", lambda e: entry.config(bg=HOVER))
         entry.bind("<Leave>", lambda e: entry.config(bg=INPUT))
         if browse:
+            if kind == "file":
+                cmd = lambda: var.set(self._file_picker(f"Select {label if label else 'file'}"))
+            else:
+                cmd = lambda: var.set(self._folder_picker(f"Select {label if label else 'folder'}"))
+
             browse_btn = tk.Button(row, text="…", bg=CARD, fg=TEXT, bd=0, relief="flat",
                                   highlightthickness=0, width=4, font=("Sans", 10, "bold"),
-                                  command=lambda: var.set(self._folder_picker(f"Select {label}")))
+                                  command=cmd)
             browse_btn.pack(side="right", padx=(4, 0))
             # Add hover effects to browse button
             browse_btn.bind("<Enter>", lambda e: browse_btn.config(bg=HOVER))
