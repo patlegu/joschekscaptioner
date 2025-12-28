@@ -1,6 +1,6 @@
 # Joschek's Captioner
 
-Another AI training tool. This one is "vibe coded", which means I wrote it until it worked for me. If it works for you, that's a happy accident.
+ vibe coded image dataset caption tool, that does exactly what i personally need. If it works for you, that's a happy accident.
 
 ## Features
 - **Model Selector**: Because we all know your file organization is a mess. Point it to wherever you hid your vision models this time.
@@ -11,7 +11,7 @@ Another AI training tool. This one is "vibe coded", which means I wrote it until
 
 ## Installation
 
-You need Python 3.10+ and an NVIDIA GPU. If you don't have a GPU, enjoy waiting.
+You need Python 3.10+ and an NVIDIA GPU.
 
 ### Arch / Manjaro (btw)
 ```bash
