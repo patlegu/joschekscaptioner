@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Joschek’s Captioner  v22-Linux-only
-Light-weight pure-Tk folder picker – no crashes, no external deps
+Joschek’s Captioner  v22
 """
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, filedialog
@@ -36,16 +35,22 @@ API_URL      = f"http://localhost:{DEFAULT_PORT}/v1"
 DEFAULT_PROMPT = "Describe this image in detail for an AI training dataset. Focus on clothing, background, textures, and lighting."
 TARGETS = [768, 1024, 1536, 2048]
 
-# ---------------- PALETTE ----------------
-BG = "#2b2e37"
-CARD = "#353945"
-INPUT = "#3d424e"
-TEXT = "#d3dae3"
-DIM  = "#7c818c"
-BORDER = BG
-BLUE = "#5294e2"
-GREEN= "#73d216"
-RED  = "#cc0000"
+# ---------------- MODERN PALETTE ----------------
+# Primary colors - sleek dark theme with modern accents
+BG = "#1a1b26"              # Darker background for better contrast
+CARD = "#24283b"            # Modern card color
+INPUT = "#2a2d3e"           # Input field background
+TEXT = "#f8f8f2"            # Brighter text for better readability
+DIM = "#6272a4"             # Subtle dim text
+BORDER = "#44475a"          # Border color
+ACCENT = "#6272a4"          # Primary accent color
+BLUE = "#5294e2"            # Modern blue
+GREEN = "#50fa7b"           # Vibrant green
+RED = "#ff5555"             # Modern red
+PURPLE = "#bd93f9"          # Purple accent
+CYAN = "#8be9fd"            # Cyan accent
+ORANGE = "#ff79c6"          # Orange accent
+HOVER = "#3d424e"           # Hover state color
 
 # ---------------- UTILS ----------------
 class Config:
@@ -103,7 +108,7 @@ class QueueItem(tk.Frame):
         close.bind("<Leave>", lambda e: close.config(fg=DIM))
         tk.Label(main, text=str(self.folder_path), bg=CARD, fg=DIM, font=("Sans", 7), anchor="w").pack(fill="x", pady=(0, 8))
         self.prompt = tk.Text(main, height=2, bg=INPUT, fg=TEXT, bd=0, relief="flat",
-                              font=("Sans", 8), insertbackground=BLUE, wrap="word")
+                              highlightthickness=0, font=("Sans", 8), insertbackground=BLUE, wrap="word")
         self.prompt.insert("1.0", config.get("last_prompt", DEFAULT_PROMPT))
         self.prompt.bind("<KeyRelease>", lambda e: config.set("last_prompt", self.get_prompt()))
         self.prompt.pack(fill="x")
@@ -117,7 +122,9 @@ class ScrollFrame(tk.Frame):
     def __init__(self, parent):
         super().__init__(parent, bg=BG)
         canvas = tk.Canvas(self, bg=BG, highlightthickness=0, bd=0)
-        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        scrollbar = tk.Scrollbar(self, orient="vertical", command=canvas.yview,
+                                 width=30, bg=CARD, troughcolor=BG, bd=0, highlightthickness=0,
+                                 activebackground=HOVER, elementborderwidth=0)
         self.content = tk.Frame(canvas, bg=BG)
         self.content.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.create_window((0, 0), window=self.content, anchor="nw")
@@ -259,6 +266,17 @@ class App:
         root.title("Joschek's Captioner v22-Linux")
         root.geometry("1100x720")
         root.configure(bg=BG)
+        # Set modern font for the entire application
+        root.option_add("*Font", ("Sans", 10))
+        # Set window icon if available (Linux)
+        try:
+            icon_path = os.path.join(os.path.dirname(__file__), "jc32x32.png")
+            if os.path.exists(icon_path):
+                self.icon_img = tk.PhotoImage(file=icon_path)
+                root.iconphoto(True, self.icon_img)
+        except Exception as e:
+            print(f"Error loading icon: {e}")
+
         self.config = Config()
         self.setup_styles()
         self.server_proc = None
@@ -267,37 +285,108 @@ class App:
         self.client = None
         self.current_editor_folder = None
         self.editor_items = []
-        self.thumb_size = 128
-        # notebook
-        nb = ttk.Notebook(root)
-        nb.pack(fill="both", expand=True)
-        self.tab_srv   = tk.Frame(nb, bg=BG)
-        self.tab_batch = tk.Frame(nb, bg=BG)
-        self.tab_editor= tk.Frame(nb, bg=BG)
-        self.tab_filter= tk.Frame(nb, bg=BG)
-        self.tab_crop  = tk.Frame(nb, bg=BG)
-        nb.add(self.tab_srv,   text="Server")
-        nb.add(self.tab_batch, text="Batch")
-        nb.add(self.tab_editor,text="Editor")
-        nb.add(self.tab_filter,text="Filter & Move")
-        nb.add(self.tab_crop,  text="Crop Humans")
+        self.thumb_size = 200 # Fixed height for editor images
+        self.thumb_cache = {}
+        # Create modern custom tab system
+        self.create_modern_tab_system()
         self.build_server()
         self.build_batch()
         self.build_editor()
         self.build_filter()
         self.build_crop()
+        self.update_vram_info() # Start VRAM monitoring
         root.protocol("WM_DELETE_WINDOW", self.on_close)
-    # ---------------- STYLES (ELEGANT) ----------------
+    # ---------------- MODERN STYLES ----------------
     def setup_styles(self):
         s = ttk.Style()
         s.theme_use("clam")
-        s.configure("TNotebook", background=BG, borderwidth=0, tabmargins=[0, 0, 0, 0])
-        s.configure("TNotebook.Tab", background=CARD, foreground=TEXT,
-                    padding=[26, 12], borderwidth=0, font=("Sans", 10))
-        s.map("TNotebook.Tab", background=[("selected", INPUT)], foreground=[("selected", TEXT)])
-        s.configure("TProgressbar", background=BLUE, troughcolor=BG, borderwidth=0, thickness=4)
-        s.configure("Vertical.TScrollbar", background=CARD, troughcolor=BG,
-                    borderwidth=0, arrowsize=10, gripcount=0)
+
+        # Modern progress bar
+        s.configure("TProgressbar", background=BLUE, troughcolor=BG, borderwidth=0, thickness=6)
+        s.configure("Horizontal.TProgressbar", background=BLUE, troughcolor=BG, borderwidth=0, thickness=6)
+
+        # Modern subtle scrollbar - wider for better accessibility
+        s.configure("Vertical.TScrollbar", background=BG, troughcolor=BG, borderwidth=0, arrowsize=0, width=30)
+        s.map("Vertical.TScrollbar", background=[("active", HOVER), ("!active", CARD)])
+        
+        s.configure("Horizontal.TScrollbar", background=BG, troughcolor=BG, borderwidth=0, arrowsize=0, width=30)
+        s.map("Horizontal.TScrollbar", background=[("active", HOVER), ("!active", CARD)])
+
+        # Modern combobox
+        s.configure("TCombobox", background=INPUT, foreground=TEXT, borderwidth=0,
+                    fieldbackground=INPUT, selectbackground=BLUE, selectforeground=TEXT,
+                    arrowcolor=TEXT)
+        s.map("TCombobox", fieldbackground=[("readonly", INPUT)], 
+              background=[("readonly", INPUT)], 
+              foreground=[("readonly", TEXT)])
+
+    # ---------------- CUSTOM TAB SYSTEM ----------------
+    def create_modern_tab_system(self):
+        # Main container
+        main = tk.Frame(self.root, bg=BG)
+        main.pack(fill="both", expand=True)
+
+        # Top Bar (Tabs)
+        self.tab_bar = tk.Frame(main, bg=BG, height=50)
+        self.tab_bar.pack(side="top", fill="x", pady=(10, 0), padx=20)
+        
+        # Content Area
+        self.content_area = tk.Frame(main, bg=BG)
+        self.content_area.pack(side="bottom", fill="both", expand=True)
+        
+        # Initialize containers for each tab's content
+        self.tab_srv = tk.Frame(self.content_area, bg=BG)
+        self.tab_batch = tk.Frame(self.content_area, bg=BG)
+        self.tab_editor = tk.Frame(self.content_area, bg=BG)
+        self.tab_filter = tk.Frame(self.content_area, bg=BG)
+        self.tab_crop = tk.Frame(self.content_area, bg=BG)
+        
+        self.tabs = {}        # Name -> Frame
+        self.tab_btns = {}    # Name -> Label widget
+        self.current_tab = None
+
+        # Add tabs
+        self.add_tab("Server", self.tab_srv)
+        self.add_tab("Batch", self.tab_batch)
+        self.add_tab("Editor", self.tab_editor)
+        self.add_tab("Filter & Move", self.tab_filter)
+        self.add_tab("Crop", self.tab_crop)
+
+        # Separator line under tabs
+        tk.Frame(main, bg=INPUT, height=1).pack(side="top", fill="x", pady=(0, 0))
+
+        # Select first
+        self.switch_tab("Server")
+
+    def add_tab(self, name, frame):
+        self.tabs[name] = frame
+        btn = tk.Label(self.tab_bar, text=name, bg=BG, fg=DIM, font=("Sans", 10, "bold"),
+                       cursor="hand2", padx=15, pady=8)
+        btn.pack(side="left")
+        btn.bind("<Button-1>", lambda e: self.switch_tab(name))
+        btn.bind("<Enter>", lambda e: self._hover_tab(name, True))
+        btn.bind("<Leave>", lambda e: self._hover_tab(name, False))
+        self.tab_btns[name] = btn
+
+    def switch_tab(self, name):
+        if self.current_tab == name:
+            return
+        
+        # Hide old
+        if self.current_tab:
+            self.tabs[self.current_tab].pack_forget()
+            self.tab_btns[self.current_tab].config(fg=DIM)
+        
+        # Show new
+        self.current_tab = name
+        self.tabs[name].pack(fill="both", expand=True)
+        self.tab_btns[name].config(fg=BLUE) # Active color
+
+    def _hover_tab(self, name, entering):
+        if name == self.current_tab:
+            return
+        self.tab_btns[name].config(fg=TEXT if entering else DIM)
+
     # ---------------- SERVER TAB ----------------
     def build_server(self):
         f = tk.Frame(self.tab_srv, bg=BG)
@@ -317,7 +406,7 @@ class App:
                                    ("Model (.gguf)", self.model, True),
                                    ("Projector (.gguf)", self.proj, True)]:
             self.field(f, label, var, browse)
-        ttk.Frame(f, height=12).pack()
+        tk.Frame(f, height=12, bg=BG).pack()
         params = tk.Frame(f, bg=BG)
         params.pack(fill="x")
         for lbl, v in [("Port", self.port), ("Context", self.ctx), ("GPU Layers", self.gpu)]:
@@ -325,43 +414,49 @@ class App:
             col.pack(side="left", fill="x", expand=True, padx=3)
             tk.Label(col, text=lbl, bg=BG, fg=DIM, font=("Sans", 7)).pack(anchor="w", pady=(0, 2))
             tk.Entry(col, textvariable=v, bg=INPUT, fg=TEXT, bd=0, relief="flat",
-                     font=("Sans", 8), insertbackground=BLUE, justify="center").pack(fill="x", ipady=5)
-        ttk.Frame(f, height=8).pack()
+                     highlightthickness=0, font=("Sans", 8), insertbackground=BLUE, justify="center").pack(fill="x", ipady=5)
+        tk.Frame(f, height=8, bg=BG).pack()
         vram_frame = tk.Frame(f, bg=BG)
         vram_frame.pack(fill="x")
         self.vram_label = tk.Label(vram_frame, text="Checking VRAM...", bg=BG, fg=DIM, font=("Sans", 7))
         self.vram_label.pack(side="left", fill="x", expand=True)
-        self.btn_kill_gpu = self.btn(vram_frame, "Kill GPU Processes", RED, self.kill_gpu_processes)
+        self.btn_kill_gpu = self.btn(vram_frame, "Kill GPU Processes", BLUE, self.kill_gpu_processes)
         self.btn_kill_gpu.pack(side="right")
-        ttk.Frame(f, height=4).pack()
+        tk.Frame(f, height=4, bg=BG).pack()
         tip = tk.Frame(f, bg=CARD)
         tip.pack(fill="x", padx=1, pady=1)
         tk.Label(tip, text="16GB VRAM defaults: Context 8192, GPU Layers 99, Batch 512",
                  bg=CARD, fg=DIM, font=("Sans", 7)).pack(pady=5)
-        ttk.Frame(f, height=12).pack()
+        tk.Frame(f, height=12, bg=BG).pack()
         btns = tk.Frame(f, bg=BG)
         btns.pack(fill="x")
-        self.btn_start = self.btn(btns, "Start Server", GREEN, self.start_server)
+        self.btn_start = self.btn(btns, "Start Server", BLUE, self.start_server)
         self.btn_start.pack(side="left", fill="x", expand=True, padx=(0, 6))
-        self.btn_stop = self.btn(btns, "Stop Server", RED, self.stop_server)
+        self.btn_stop = self.btn(btns, "Stop Server", BLUE, self.stop_server)
         self.btn_stop.pack(side="left", fill="x", expand=True)
         self.btn_stop.config(state="disabled", bg=CARD)
-        ttk.Frame(f, height=12).pack()
+        tk.Frame(f, height=12, bg=BG).pack()
         log_frame = tk.Frame(f, bg=BG)
         log_frame.pack(fill="both", expand=True)
-        self.log = scrolledtext.ScrolledText(log_frame, height=11, bg="#1a1d23", fg="#00ff00",
-                                             bd=0, relief="flat", font=("Monospace", 7), wrap="word")
-        self.log.pack(fill="both", expand=True)
+        self.log = tk.Text(log_frame, height=11, bg="#1a1d23", fg="#00ff00",
+                           bd=0, relief="flat", highlightthickness=0, font=("Monospace", 7), wrap="word")
+        self.log.pack(side="left", fill="both", expand=True)
+        s_log = tk.Scrollbar(log_frame, orient="vertical", command=self.log.yview,
+                             width=30, bg=CARD, troughcolor=BG, bd=0, highlightthickness=0,
+                             activebackground=HOVER, elementborderwidth=0)
+        s_log.pack(side="right", fill="y")
+        self.log.configure(yscrollcommand=s_log.set)
     # ---------------- BATCH TAB ----------------
     def build_batch(self):
         main = tk.Frame(self.tab_batch, bg=BG)
         main.pack(fill="both", expand=True, padx=25, pady=15)
+        # Left side takes most room
         left = tk.Frame(main, bg=BG)
         left.pack(side="left", fill="both", expand=True)
         tool = tk.Frame(left, bg=BG)
         tool.pack(fill="x", pady=(0, 10))
         self.btn(tool, "Add Folder", BLUE, self.add_folder).pack(side="left", padx=(0, 8))
-        self.btn_proc = self.btn(tool, "Start Processing", GREEN, self.toggle_batch)
+        self.btn_proc = self.btn(tool, "Start Processing", BLUE, self.toggle_batch)
         self.btn_proc.pack(side="left")
         self.overwrite = tk.BooleanVar(value=False)
         tk.Checkbutton(tool, text="Overwrite", variable=self.overwrite, bg=BG, fg=TEXT,
@@ -375,14 +470,21 @@ class App:
         self.progress.pack(fill="x")
         self.prog_lbl = tk.Label(prog, text="Idle", bg=BG, fg=DIM, font=("Sans", 8))
         self.prog_lbl.pack(pady=(4, 0))
-        right = tk.Frame(main, bg=BG)
-        right.pack(side="right", fill="both", expand=True, padx=(15, 0))
+        # Right side is thinner for status
+        right = tk.Frame(main, bg=BG, width=250)
+        right.pack(side="right", fill="both", expand=False, padx=(15, 0))
+        right.pack_propagate(False)
         tk.Label(right, text="Processing Status", bg=BG, fg=TEXT, font=("Sans", 9)).pack(anchor="w", pady=(0, 5))
         status_frame = tk.Frame(right, bg=BG)
         status_frame.pack(fill="both", expand=True)
-        self.status_log = scrolledtext.ScrolledText(status_frame, bg=INPUT, fg=TEXT, bd=0, relief="flat",
-                                                    font=("Monospace", 7), wrap="word", state="disabled")
-        self.status_log.pack(fill="both", expand=True)
+        self.status_log = tk.Text(status_frame, bg=INPUT, fg=TEXT, bd=0, relief="flat",
+                                  highlightthickness=0, font=("Monospace", 7), wrap="word", state="disabled")
+        self.status_log.pack(side="left", fill="both", expand=True)
+        s_batch = tk.Scrollbar(status_frame, orient="vertical", command=self.status_log.yview,
+                               width=30, bg=CARD, troughcolor=BG, bd=0, highlightthickness=0,
+                               activebackground=HOVER, elementborderwidth=0)
+        s_batch.pack(side="right", fill="y")
+        self.status_log.configure(yscrollcommand=s_batch.set)
     # ---------------- EDITOR TAB ----------------
     def build_editor(self):
         tool = tk.Frame(self.tab_editor, bg=BG)
@@ -390,32 +492,73 @@ class App:
         self.btn(tool, "Load Folder", BLUE, self.load_editor_folder).pack(side="left")
         self.editor_folder_label = tk.Label(tool, text="No folder loaded", bg=BG, fg=DIM, font=("Sans", 8))
         self.editor_folder_label.pack(side="left", padx=15)
+
+        # Add filter input
+        filter_frame = tk.Frame(tool, bg=BG)
+        filter_frame.pack(side="right")
+        tk.Label(filter_frame, text="Filter (in captions):", bg=BG, fg=DIM, font=("Sans", 8)).pack(side="left", padx=(10, 2))
+        self.editor_filter_var = tk.StringVar()
+        filter_entry = tk.Entry(filter_frame, textvariable=self.editor_filter_var, bg=INPUT, fg=TEXT, bd=0, relief="flat",
+                              highlightthickness=0, font=("Sans", 8), insertbackground=BLUE, width=20)
+        filter_entry.pack(side="left")
+        filter_entry.bind("<Enter>", lambda e: filter_entry.config(bg=HOVER))
+        filter_entry.bind("<Leave>", lambda e: filter_entry.config(bg=INPUT))
+        filter_entry.bind("<Return>", lambda e: self.apply_editor_filter())
+        clear_btn = tk.Button(filter_frame, text="Clear", bg=CARD, fg=TEXT, bd=0, relief="flat",
+                            font=("Sans", 8), cursor="hand2", command=self.clear_editor_filter)
+        clear_btn.pack(side="left", padx=(2, 0))
+        clear_btn.bind("<Enter>", lambda e: clear_btn.config(bg=HOVER))
+        clear_btn.bind("<Leave>", lambda e: clear_btn.config(bg=CARD))
+
+        # Main scrollable area for items
         content = tk.Frame(self.tab_editor, bg=BG)
         content.pack(fill="both", expand=True, padx=25, pady=(0, 15))
-        left = tk.Frame(content, bg=BG)
-        left.pack(side="left", fill="both", expand=True)
-        tk.Label(left, text="Images", bg=BG, fg=TEXT, font=("Sans", 8)).pack(anchor="w", pady=(0, 5))
-        img_frame = tk.Frame(left, bg=BG)
-        img_frame.pack(fill="both", expand=True)
-        self.img_canvas = tk.Canvas(img_frame, bg=INPUT, highlightthickness=0, bd=0)
-        img_scroll = ttk.Scrollbar(img_frame, orient="vertical", command=self.img_canvas.yview)
-        self.img_list_frame = tk.Frame(self.img_canvas, bg=INPUT)
+        
+        self.img_canvas = tk.Canvas(content, bg=BG, highlightthickness=0, bd=0)
+        # Custom wide minimal scrollbar
+        img_scroll = tk.Scrollbar(content, orient="vertical", command=self.img_canvas.yview,
+                                  width=30, bg=CARD, troughcolor=BG, bd=0, highlightthickness=0,
+                                  activebackground=HOVER, elementborderwidth=0)
+        
+        self.img_list_frame = tk.Frame(self.img_canvas, bg=BG)
+        self.canvas_window = self.img_canvas.create_window((0, 0), window=self.img_list_frame, anchor="nw")
+        
+        def _on_canvas_configure(e):
+            self.img_canvas.itemconfig(self.canvas_window, width=e.width)
+        
+        self.img_canvas.bind("<Configure>", _on_canvas_configure)
         self.img_list_frame.bind("<Configure>", lambda e: self.img_canvas.configure(scrollregion=self.img_canvas.bbox("all")))
-        self.img_canvas.create_window((0, 0), window=self.img_list_frame, anchor="nw")
-        self.img_canvas.configure(yscrollcommand=img_scroll.set)
+        
+        # Lazy loading hook
+        def _on_scroll(*args):
+            img_scroll.set(*args)
+            if float(args[1]) > 0.9:
+                self.load_more_items()
+        
+        self.img_canvas.configure(yscrollcommand=_on_scroll)
         self.img_canvas.pack(side="left", fill="both", expand=True)
         img_scroll.pack(side="right", fill="y")
-        right = tk.Frame(content, bg=BG)
-        right.pack(side="right", fill="both", expand=True, padx=(15, 0))
-        tk.Label(right, text="Caption", bg=BG, fg=TEXT, font=("Sans", 8)).pack(anchor="w", pady=(0, 5))
-        text_frame = tk.Frame(right, bg=BG)
-        text_frame.pack(fill="both", expand=True)
-        self.editor_text = scrolledtext.ScrolledText(text_frame, bg=INPUT, fg=TEXT, bd=0, relief="flat",
-                                                     font=("Sans", 9), wrap="word", insertbackground=BLUE)
-        self.editor_text.pack(fill="both", expand=True)
-        self.editor_text.bind("<KeyRelease>", self.autosave_caption)
-        self.root.bind("<Up>", lambda e: self.editor_select_delta(-1))
-        self.root.bind("<Down>", lambda e: self.editor_select_delta(1))
+
+        # Bind mousewheel to canvas with robust cross-platform support
+        def _on_mousewheel(e):
+            if e.num == 4 or e.delta > 0:
+                self.img_canvas.yview_scroll(-2, "units")
+            elif e.num == 5 or e.delta < 0:
+                self.img_canvas.yview_scroll(2, "units")
+
+        # Bind to canvas and all its children recursively when mouse enters
+        def _bind_mousewheel(e):
+            self.img_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            self.img_canvas.bind_all("<Button-4>", _on_mousewheel)
+            self.img_canvas.bind_all("<Button-5>", _on_mousewheel)
+        
+        def _unbind_mousewheel(e):
+            self.img_canvas.unbind_all("<MouseWheel>")
+            self.img_canvas.unbind_all("<Button-4>")
+            self.img_canvas.unbind_all("<Button-5>")
+
+        self.img_canvas.bind("<Enter>", _bind_mousewheel)
+        self.img_canvas.bind("<Leave>", _unbind_mousewheel)
     # ---------------- CROP TAB ----------------
     def build_crop(self):
         f = tk.Frame(self.tab_crop, bg=BG)
@@ -431,27 +574,37 @@ class App:
         row_in = tk.Frame(f, bg=BG)
         row_in.pack(fill="x", pady=(0, 10))
         tk.Entry(row_in, textvariable=self.crop_in, bg=INPUT, fg=TEXT, bd=0, relief="flat",
-                 font=("Sans", 9), insertbackground=BLUE).pack(side="left", fill="x", expand=True, ipady=6)
-        tk.Button(row_in, text="…", bg=CARD, fg=TEXT, bd=0, relief="flat", width=4,
+                 highlightthickness=0, font=("Sans", 9), insertbackground=BLUE).pack(side="left", fill="x", expand=True, ipady=6)
+        tk.Button(row_in, text="…", bg=CARD, fg=TEXT, bd=0, relief="flat", highlightthickness=0, width=4,
                   command=self.crop_select_in).pack(side="right", padx=(4, 0))
 
         tk.Label(f, text="Output Folder:", bg=BG, fg=DIM, font=("Sans", 9)).pack(anchor="w")
         row_out = tk.Frame(f, bg=BG)
         row_out.pack(fill="x", pady=(0, 10))
         tk.Entry(row_out, textvariable=self.crop_out, bg=INPUT, fg=TEXT, bd=0, relief="flat",
-                 font=("Sans", 9), insertbackground=BLUE).pack(side="left", fill="x", expand=True, ipady=6)
-        tk.Button(row_out, text="…", bg=CARD, fg=TEXT, bd=0, relief="flat", width=4,
+                 highlightthickness=0, font=("Sans", 9), insertbackground=BLUE).pack(side="left", fill="x", expand=True, ipady=6)
+        tk.Button(row_out, text="…", bg=CARD, fg=TEXT, bd=0, relief="flat", highlightthickness=0, width=4,
                   command=lambda: self.crop_out.set(self._folder_picker("Select Output Folder"))).pack(side="right", padx=(4, 0))
 
         tk.Label(f, text="Resolution Strategy (Longest Side):", bg=BG, fg=DIM, font=("Sans", 9)).pack(anchor="w", pady=(0, 2))
         res_opts = ["Auto (Best Fit)", "768px", "1024px", "1536px", "2048px", "Keep Original (No Crop)"]
-        self.crop_res_combo = ttk.Combobox(f, textvariable=self.crop_res, values=res_opts, state="readonly")
-        self.crop_res_combo.pack(fill="x", ipady=4)
+        
+        # Custom dark minimalist dropdown
+        self.res_mb = tk.Menubutton(f, textvariable=self.crop_res, bg=INPUT, fg=TEXT, 
+                                    activebackground=HOVER, activeforeground=TEXT,
+                                    bd=0, highlightthickness=0, font=("Sans", 9),
+                                    relief="flat", anchor="w", padx=10)
+        self.res_menu = tk.Menu(self.res_mb, tearoff=0, bg=CARD, fg=TEXT, 
+                                activebackground=BLUE, activeforeground=TEXT, bd=0)
+        self.res_mb["menu"] = self.res_menu
+        for opt in res_opts:
+            self.res_menu.add_command(label=opt, command=lambda o=opt: self.crop_res.set(o))
+        self.res_mb.pack(fill="x", ipady=8)
         
         tk.Label(f, text="Available Sizes: 768, 1024, 1536, 2048", bg=BG, fg=DIM, font=("Sans", 7)).pack(anchor="w", pady=(2, 0))
         
         tk.Frame(f, height=15, bg=BG).pack()
-        self.btn_start_crop = self.btn(f, "START CROP PROCESSING", GREEN, self.start_crop)
+        self.btn_start_crop = self.btn(f, "START CROP PROCESSING", BLUE, self.start_crop)
         
         tk.Frame(f, height=10, bg=BG).pack()
         self.crop_progress = ttk.Progressbar(f, mode="determinate")
@@ -521,7 +674,7 @@ class App:
         self.root.after(0, self._crop_reset_ui)
 
     def _crop_reset_ui(self):
-        self.btn_start_crop.config(state="normal", bg=GREEN, text="START CROP PROCESSING")
+        self.btn_start_crop.config(state="normal", bg=BLUE, text="START CROP PROCESSING")
         self.crop_log_lbl.config(text="Finished.")
 
     # ---------------- FILTER & MOVE TAB ----------------
@@ -537,7 +690,7 @@ class App:
         tk.Label(f, text="Keyword (case-insensitive):", bg=BG, fg=DIM, font=("Sans", 9)).pack(anchor="w")
         self.filter_kw_var = tk.StringVar()
         kw_entry = tk.Entry(f, textvariable=self.filter_kw_var, bg=INPUT, fg=TEXT, bd=0, relief="flat",
-                            font=("Sans", 10), insertbackground=BLUE)
+                            highlightthickness=0, font=("Sans", 10), insertbackground=BLUE)
         kw_entry.pack(fill="x", ipady=6)
         # target
         tk.Frame(f, height=8, bg=BG).pack()
@@ -551,9 +704,14 @@ class App:
         tk.Frame(f, height=15, bg=BG).pack()
         log_frame = tk.Frame(f, bg=BG)
         log_frame.pack(fill="both", expand=True)
-        self.filter_log = scrolledtext.ScrolledText(log_frame, height=10, bg=INPUT, fg=TEXT, bd=0, relief="flat",
-                                                    font=("Monospace", 8), wrap="word", state="disabled")
-        self.filter_log.pack(fill="both", expand=True)
+        self.filter_log = tk.Text(log_frame, height=10, bg=INPUT, fg=TEXT, bd=0, relief="flat",
+                                  highlightthickness=0, font=("Monospace", 8), wrap="word", state="disabled")
+        self.filter_log.pack(side="left", fill="both", expand=True)
+        s_filter = tk.Scrollbar(log_frame, orient="vertical", command=self.filter_log.yview,
+                                width=30, bg=CARD, troughcolor=BG, bd=0, highlightthickness=0,
+                                activebackground=HOVER, elementborderwidth=0)
+        s_filter.pack(side="right", fill="y")
+        self.filter_log.configure(yscrollcommand=s_filter.set)
     def move_keyword_pairs(self):
         src = Path(self.filter_src_var.get())
         kw  = self.filter_kw_var.get().strip().lower()
@@ -594,50 +752,60 @@ class App:
         self.filter_log.see("end")
         self.filter_log.config(state="disabled")
     # ---------------- EDITOR UTILS ----------------
-    def editor_select_delta(self, delta):
-        if not self.editor_items:
-            return
-        idx = next((i for i, (_, f) in enumerate(self.editor_items) if f["bg"] == INPUT), 0)
-        new = max(0, min(len(self.editor_items) - 1, idx + delta))
-        self.editor_items[new][1].event_generate("<Button-1>")
     def load_editor_folder(self):
         path = Path(self._folder_picker())
         if path and path.is_dir():
             self.current_editor_folder = path
             self.editor_folder_label.config(text=path.name)
             self.load_editor_images()
-    def create_editor_item(self, img_path: Path):
-        item_frame = tk.Frame(self.img_list_frame, bg=CARD, cursor="hand2")
-        item_frame.pack(fill="x", pady=2, padx=2)
-        try:
-            img = Image.open(img_path)
-            img.thumbnail((self.thumb_size, self.thumb_size))
-            photo = ImageTk.PhotoImage(img)
-            img_label = tk.Label(item_frame, image=photo, bg=CARD)
+
+    def create_editor_item(self, img_path: Path, thumb_img=None):
+        item_frame = tk.Frame(self.img_list_frame, bg=CARD, height=self.thumb_size + 20)
+        item_frame.pack(fill="x", pady=5, padx=2)
+        item_frame.pack_propagate(False)
+        
+        # Image Container
+        img_container = tk.Frame(item_frame, bg=CARD, width=self.thumb_size + 20)
+        img_container.pack(side="left", fill="y")
+        
+        # Placeholder or Image
+        img_label = tk.Label(img_container, bg=CARD, fg=DIM)
+        if thumb_img:
+            photo = ImageTk.PhotoImage(thumb_img)
+            img_label.configure(image=photo)
             img_label.image = photo
-            img_label.pack(side="left", padx=5, pady=5)
-        except:
-            img_label = tk.Label(item_frame, text="[img]", bg=CARD, fg=DIM, width=10)
-            img_label.pack(side="left", padx=5, pady=5)
-        name_label = tk.Label(item_frame, text=img_path.name,
-                              bg=CARD, fg=TEXT, font=("Sans", 8), anchor="w")
-        name_label.pack(side="left", fill="x", expand=True, padx=5)
-        def select():
-            self.load_caption_for_image(img_path)
-            for w in self.img_list_frame.winfo_children():
-                w.config(bg=CARD)
-                for child in w.winfo_children():
-                    child.config(bg=CARD)
-            item_frame.config(bg=INPUT)
-            for child in item_frame.winfo_children():
-                if isinstance(child, tk.Label):
-                    child.config(bg=INPUT)
-        item_frame.bind("<Button-1>", lambda e: select())
-        for child in item_frame.winfo_children():
-            child.bind("<Button-1>", lambda e: select())
+        else:
+            img_label.configure(text="Loading...")
+            
+        img_label.pack(expand=True)
         img_label.bind("<Double-Button-1>", lambda e: self.show_zoom(img_path))
-        name_label.bind("<Double-Button-1>", lambda e: self.show_zoom(img_path))
+        
+        # Info & Text Container
+        right_container = tk.Frame(item_frame, bg=CARD)
+        right_container.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+        
+        tk.Label(right_container, text=img_path.name, bg=CARD, fg=DIM, font=("Sans", 8), anchor="w").pack(fill="x")
+        
+        txt_path = img_path.with_suffix(".txt")
+        initial_content = ""
+        if txt_path.exists():
+            try: initial_content = txt_path.read_text(encoding="utf-8", errors="ignore")
+            except: pass
+            
+        text_area = tk.Text(right_container, bg=INPUT, fg=TEXT, bd=0, relief="flat",
+                            highlightthickness=0, font=("Sans", 9), wrap="word", insertbackground=BLUE)
+        text_area.insert("1.0", initial_content)
+        text_area.pack(fill="both", expand=True, pady=(5, 0))
+        
+        def _save(event=None):
+            content = text_area.get("1.0", "end-1c")
+            try: txt_path.write_text(content, encoding="utf-8")
+            except: pass
+            
+        text_area.bind("<KeyRelease>", _save)
+        
         self.editor_items.append((img_path, item_frame))
+        return img_label
     def show_zoom(self, img_path: Path):
         if hasattr(self, "zoom_tl"):
             self.zoom_tl.destroy()
@@ -660,12 +828,6 @@ class App:
         close.pack(pady=4)
         close.bind("<Button-1>", lambda e: tl.destroy())
         self.zoom_tl = tl
-    def autosave_caption(self, event=None):
-        if hasattr(self, "current_caption_file"):
-            try:
-                self.current_caption_file.write_text(self.editor_text.get("1.0", "end-1c"), encoding="utf-8")
-            except Exception as e:
-                print("Autosave error:", e)
     # ---------------- SERVER  ----------------
     def detect_binary(self):
         for p in ["./build/bin/llama-server", "./llama-server", "../llama.cpp/build/bin/llama-server"]:
@@ -674,14 +836,17 @@ class App:
                 break
     def update_vram_info(self):
         try:
-            used, total = map(int, subprocess.check_output(
-                ["nvidia-smi", "--query-gpu=memory.used,memory.total",
-                 "--format=csv,noheader,nounits"], stderr=subprocess.DEVNULL).decode().strip().split(","))
+            cmd = ["nvidia-smi", "--query-gpu=memory.used,memory.total", "--format=csv,noheader,nounits"]
+            output = subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode().strip()
+            if not output: raise ValueError("Empty output")
+            used, total = map(int, output.split(","))
             free, percent = total - used, (used / total) * 100
             color = GREEN if percent < 50 else (BLUE if percent < 80 else RED)
             self.vram_label.config(text=f"VRAM: {used}MB used / {free}MB free / {total}MB total ({percent:.0f}%)", fg=color)
-        except:
-            self.vram_label.config(text="VRAM info unavailable", fg=DIM)
+        except Exception as e:
+            self.vram_label.config(text=f"VRAM info unavailable", fg=DIM)
+        # Schedule next update
+        self.root.after(5000, self.update_vram_info)
     def kill_gpu_processes(self):
         if not messagebox.askyesno("Kill GPU Processes", "Terminate ALL GPU processes?"):
             return
@@ -746,7 +911,7 @@ class App:
         # address bar
         bar = tk.Frame(top, bg=BG)
         bar.pack(fill="x", padx=6, pady=6)
-        tk.Entry(bar, textvariable=addr, bg=INPUT, fg=TEXT, bd=0, font=("Sans", 9)).pack(side="left", fill="x", expand=True, ipady=5)
+        tk.Entry(bar, textvariable=addr, bg=INPUT, fg=TEXT, bd=0, highlightthickness=0, font=("Sans", 9)).pack(side="left", fill="x", expand=True, ipady=5)
 
         # file list
         frame = tk.Frame(top, bg=BG)
@@ -837,7 +1002,7 @@ class App:
             pass
         self.root.after(0, self.reset_ui)
     def reset_ui(self):
-        self.btn_start.config(state="normal", bg=GREEN)
+        self.btn_start.config(state="normal", bg=BLUE)
         self.btn_stop.config(state="disabled", bg=CARD)
         self.log.insert("end", "Server stopped\n")
     # ---------------- BATCH  (USES CUSTOM PROMPT PER FOLDER) ----------------
@@ -860,7 +1025,7 @@ class App:
     def toggle_batch(self):
         if self.batch_running:
             self.batch_running = False
-            self.btn_proc.config(text="Start Processing", bg=GREEN)
+            self.btn_proc.config(text="Start Processing", bg=BLUE)
             self.prog_lbl.config(text="Stopping...")
         else:
             try:
@@ -879,7 +1044,7 @@ class App:
         total = len(self.queue)
         if total == 0:
             self.batch_running = False
-            self.root.after(0, lambda: self.btn_proc.config(text="Start Processing", bg=GREEN))
+            self.root.after(0, lambda: self.btn_proc.config(text="Start Processing", bg=BLUE))
             self.root.after(0, lambda: self.prog_lbl.config(text="No folders in queue"))
             return
         for idx, item in enumerate(self.queue):
@@ -922,58 +1087,149 @@ class App:
             self.root.after(0, lambda i=item, r=self.batch_running:
                            i.set_status("done" if r else "error", "Complete" if r else "Stopped"))
         self.batch_running = False
-        self.root.after(0, lambda: self.btn_proc.config(text="Start Processing", bg=GREEN))
+        self.root.after(0, lambda: self.btn_proc.config(text="Start Processing", bg=BLUE))
         self.root.after(0, lambda: self.prog_lbl.config(text="Idle"))
     # ---------------- MISSING METHODS ----------------
-    def load_editor_images(self):
-        """Load all images from the current editor folder."""
-        # Clear existing items
+    def load_editor_images(self, filter_text=None):
+        """Reset and start lazy loading process."""
         for widget in self.img_list_frame.winfo_children():
             widget.destroy()
         self.editor_items = []
         
-        if not self.current_editor_folder:
+        # Reset lazy load state
+        self.all_filtered_paths = []
+        self.loaded_count = 0
+        self.is_loading_more = False
+        
+        if not self.current_editor_folder: return
+        
+        # Start worker to find/filter paths
+        threading.Thread(target=self._find_paths_worker, args=(filter_text,), daemon=True).start()
+
+    def _find_paths_worker(self, filter_text):
+        """Background thread to find and filter paths."""
+        paths = []
+        # Support both case patterns
+        exts = ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP", "*.BMP"]
+        for ext in exts:
+            paths.extend(self.current_editor_folder.glob(ext))
+        
+        # Unique paths sorted
+        paths = sorted(list(set(paths)))
+        
+        if filter_text:
+            filtered = []
+            for p in paths:
+                # Try image.txt
+                txt = p.with_suffix(".txt")
+                if not txt.exists():
+                    # Try image.ext.txt
+                    txt = Path(str(p) + ".txt")
+                
+                if txt.exists():
+                    try:
+                        content = txt.read_text(encoding="utf-8", errors="ignore").lower()
+                        if filter_text.lower() in content:
+                            filtered.append(p)
+                    except: pass
+            paths = filtered
+            
+        self.root.after(0, lambda: self._init_lazy_list(paths))
+
+    def _init_lazy_list(self, paths):
+        """Initialize list on main thread."""
+        self.all_filtered_paths = paths
+        self.load_more_items()
+
+    def load_more_items(self):
+        """Load next batch of items."""
+        if self.is_loading_more or self.loaded_count >= len(self.all_filtered_paths):
             return
+            
+        self.is_loading_more = True
+        batch_size = 20
+        end = min(self.loaded_count + batch_size, len(self.all_filtered_paths))
+        batch_paths = self.all_filtered_paths[self.loaded_count:end]
         
-        # Load images
-        for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp"):
-            for img_path in sorted(self.current_editor_folder.glob(ext)):
-                self.create_editor_item(img_path)
+        # Create placeholders immediately
+        img_labels = []
+        for p in batch_paths:
+            lbl = self.create_editor_item(p, None) # Placeholder
+            img_labels.append((p, lbl))
+            
+        self.loaded_count = end
         
-        # Select first image if available
-        if self.editor_items:
-            self.editor_items[0][1].event_generate("<Button-1>")
-    
-    def load_caption_for_image(self, img_path: Path):
-        """Load the caption text file for the selected image."""
-        self.current_caption_file = img_path.with_suffix(".txt")
+        # Start background thread to load thumbnails for this batch
+        threading.Thread(target=self._load_thumbnails_batch, args=(img_labels,), daemon=True).start()
+
+    def _load_thumbnails_batch(self, items):
+        """Load thumbnails for a batch and update UI."""
+        for path, lbl in items:
+            # Check cache
+            thumb = self.thumb_cache.get(str(path))
+            if not thumb:
+                try:
+                    img = Image.open(path)
+                    img.thumbnail((self.thumb_size, self.thumb_size))
+                    thumb = img
+                    self.thumb_cache[str(path)] = thumb
+                except: pass
+            
+            if thumb:
+                # Update UI on main thread
+                self.root.after(0, lambda l=lbl, t=thumb: self._update_thumb(l, t))
+            
+            # Tiny sleep to keep UI responsive during heavy processing
+            # import time; time.sleep(0.005) 
+        
+        self.is_loading_more = False
+
+    def _update_thumb(self, label, thumb_img):
         try:
-            if self.current_caption_file.exists():
-                content = self.current_caption_file.read_text(encoding="utf-8")
-                self.editor_text.delete("1.0", "end")
-                self.editor_text.insert("1.0", content)
-            else:
-                self.editor_text.delete("1.0", "end")
-        except Exception as e:
-            print(f"Error loading caption: {e}")
+            photo = ImageTk.PhotoImage(thumb_img)
+            label.configure(image=photo, text="")
+            label.image = photo
+        except: pass
+
+    def apply_editor_filter(self):
+        filter_text = self.editor_filter_var.get().strip()
+        self.load_editor_images(filter_text)
+
+    def clear_editor_filter(self):
+        self.editor_filter_var.set("")
+        self.load_editor_images()
+    
     
     def field(self, parent, label, var, browse):
-        """Create an input field with optional browse button."""
+        """Create a modern input field with optional browse button."""
         if label:
-            tk.Label(parent, text=label, bg=BG, fg=DIM, font=("Sans", 8)).pack(anchor="w", pady=(0, 2))
+            tk.Label(parent, text=label, bg=BG, fg=DIM, font=("Sans", 9, "bold")).pack(anchor="w", pady=(0, 4))
         row = tk.Frame(parent, bg=BG)
-        row.pack(fill="x", pady=(0, 10))
-        tk.Entry(row, textvariable=var, bg=INPUT, fg=TEXT, bd=0, relief="flat",
-                 font=("Sans", 9), insertbackground=BLUE).pack(side="left", fill="x", expand=True, ipady=6)
+        row.pack(fill="x", pady=(0, 12))
+        entry = tk.Entry(row, textvariable=var, bg=INPUT, fg=TEXT, bd=0, relief="flat",
+                        highlightthickness=0, font=("Sans", 10), insertbackground=CYAN)
+        entry.pack(side="left", fill="x", expand=True, ipady=8)
+        # Add hover effects to entry
+        entry.bind("<Enter>", lambda e: entry.config(bg=HOVER))
+        entry.bind("<Leave>", lambda e: entry.config(bg=INPUT))
         if browse:
-            tk.Button(row, text="…", bg=CARD, fg=TEXT, bd=0, relief="flat",
-                      width=4, command=lambda: var.set(self._folder_picker(f"Select {label}"))).pack(side="right", padx=(4, 0))
-    
+            browse_btn = tk.Button(row, text="…", bg=CARD, fg=TEXT, bd=0, relief="flat",
+                                  highlightthickness=0, width=4, font=("Sans", 10, "bold"),
+                                  command=lambda: var.set(self._folder_picker(f"Select {label}")))
+            browse_btn.pack(side="right", padx=(4, 0))
+            # Add hover effects to browse button
+            browse_btn.bind("<Enter>", lambda e: browse_btn.config(bg=HOVER))
+            browse_btn.bind("<Leave>", lambda e: browse_btn.config(bg=CARD))
+
     def btn(self, parent, text, color, cmd):
-        """Create a styled button."""
+        """Create a modern styled button with hover effects."""
         btn = tk.Button(parent, text=text, bg=color, fg="white", bd=0, relief="flat",
-                        font=("Sans", 9), cursor="hand2", command=cmd)
-        btn.pack(fill="x", ipady=6)
+                        highlightthickness=0, font=("Sans", 9, "bold"), cursor="hand2", command=cmd,
+                        activebackground=HOVER, activeforeground=TEXT)
+        btn.pack(fill="x", ipady=8)
+        # Add hover effects
+        btn.bind("<Enter>", lambda e: btn.config(bg=HOVER))
+        btn.bind("<Leave>", lambda e: btn.config(bg=color))
         return btn
     # ---------------- CLEAN EXIT ----------------
     def on_close(self):
