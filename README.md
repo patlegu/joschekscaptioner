@@ -20,7 +20,7 @@ git clone https://github.com/realjoschek/joschekscaptioner.git
 cd joschekscaptioner
 python -m venv venv
 source venv/bin/activate
-pip install ultralytics opencv-python numpy openai pillow
+pip install -r requirements.txt
 ```
 
 ### Debian / Ubuntu / Mint
@@ -30,7 +30,7 @@ git clone https://github.com/realjoschek/joschekscaptioner.git
 cd joschekscaptioner
 python3 -m venv venv
 source venv/bin/activate
-pip install ultralytics opencv-python numpy openai pillow
+pip install -r requirements.txt
 ```
 
 ### Windows (I'm sorry)
@@ -42,7 +42,7 @@ pip install ultralytics opencv-python numpy openai pillow
    cd joschekscaptioner
    python -m venv venv
    .\venv\Scripts\activate
-   pip install ultralytics opencv-python numpy openai pillow
+   pip install -r requirements.txt
    ```
 
 ### Setup llama-server
