@@ -1,5 +1,7 @@
 # Joschek's Captioner
 
+![Batch Captioning](batch2.jpg)
+
  vibe coded image dataset caption tool, that does exactly what i personally need. If it works for you, that's a happy accident.
 
 ## Features
