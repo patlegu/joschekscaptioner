@@ -1,0 +1,41 @@
+{
+    # =================================================================
+    #  JOSCHEK'S CAPTIONER CONFIGURATION FILE
+    # =================================================================
+    #  - Lines starting with '#' are comments and ignored.
+    #  - Uncomment a line (remove '#') to enforce a setting.
+    #  - This file uses JSON syntax (keys and values in quotes).
+    # =================================================================
+
+    # [BACKEND ENGINE]
+    # Choose between: "Native (llama-server)", "Ollama", or "LM Studio"
+    # "backend": "LM Studio",
+
+    # [SERVER SETTINGS - COMMON]
+    # Port to connect to (Default: 8080 for Native, 11434 for Ollama)
+    # "port": "1234",
+
+    # [NATIVE BACKEND SETTINGS]
+    # Path to the llama-server executable
+    # "server_binary": "./build/bin/llama-server",
+
+    # Path to the GGUF model file
+    # "model_file": "C:/AI/Models/llava-v1.6-vicuna-7b.gguf",
+
+    # Path to the Multimodal Projector file (if required)
+    # "projector_file": "C:/AI/Models/mmproj-model-f16.gguf",
+
+    # GPU Layers to offload (0 = CPU only, 99 = Full GPU)
+    # "gpu_layers": "99",
+
+    # Context Window Size (increase for high-res images)
+    # "context": "8192",
+
+    # [IMAGE PROCESSING]
+    # List of target resolutions for cropping
+    # "crop_targets": [768, 1024, 1536, 2048],
+
+    # [PROMPT]
+    # The default system prompt used for new folders
+    # "last_prompt": "Describe this image in detail..."
+}
